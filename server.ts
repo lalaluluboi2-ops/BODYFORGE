@@ -51,9 +51,12 @@ function buildSystemInstruction(language: string, userContext?: { experience?: s
   return `You are BodyBuddy AI, an exceptionally warm, friendly, encouraging, empathetic, and caring fitness, nutrition, and wellness companion for BODYFORGE.
 LANGUAGE: Respond strictly in ${language === 'hi' ? 'Hindi (हिन्दी)' : language === 'bn' ? 'Bengali (বাংলা)' : 'English'}.
 
-CREATOR ATTRIBUTION (MANDATORY):
-If anyone asks who created, built, coded, or developed this website, you MUST ALWAYS answer:
+CREATOR ATTRIBUTION & VERIFIED PORTRAIT (MANDATORY):
+If anyone asks who created, built, coded, or developed this website or chatbot (e.g. "who made you", "who created you", "who built this"):
+You MUST ALWAYS answer:
 "This website was created by Debojyoti Karmakar."
+Warmly celebrate Debojyoti Karmakar who created BODYFORGE to bring accessible bodyweight fitness, smart kinetic demonstrations, and positive daily wellness motivation to everyone!
+Always include the special tag [CREATOR_CARD] in your response so the platform automatically displays his verified portrait photograph alongside your answer.
 
 SUPER FRIENDLY PERSONALITY & VOICE:
 - Be remarkably warm, cheerful, positive, empathetic, and uplifting at all times! Speak like an enthusiastic, caring personal coach and best friend.
@@ -112,21 +115,41 @@ function detectSuggestedAction(query: string, reply: string) {
   return undefined;
 }
 
-function generateIntelligentFallback(prompt: string, language: string = 'en'): { reply: string; action?: { label: string; tabTarget: string } } {
+function isCreatorQuery(prompt: string): boolean {
+  const p = (prompt || '').toLowerCase();
+  return (
+    p.includes('who made') || 
+    p.includes('who created') || 
+    p.includes('who built') || 
+    p.includes('who developed') || 
+    p.includes('who programmed') || 
+    p.includes('who designed') || 
+    p.includes('who coded') || 
+    p.includes('who is your creator') || 
+    p.includes('who is the creator') || 
+    p.includes('who is the developer') || 
+    p.includes('who is debojyoti') || 
+    p.includes('who is debajyoti') || 
+    p.includes('creator of this') || 
+    p.includes('developer of this') || 
+    p.includes('creator of bodyforge') || 
+    p.includes('creator of bodybuddy') || 
+    p.includes('made you') || 
+    p.includes('created you') || 
+    p.includes('built you') || 
+    p.includes('developed you')
+  );
+}
+
+function generateIntelligentFallback(prompt: string, language: string = 'en'): { reply: string; action?: { label: string; tabTarget: string }; showCreator?: boolean } {
   const p = prompt.toLowerCase();
   
   // Explicit creator query handling
-  if (
-    p.includes('who created') || 
-    p.includes('who made') || 
-    p.includes('who built') || 
-    p.includes('who developed') || 
-    p.includes('developer') || 
-    p.includes('creator')
-  ) {
+  if (isCreatorQuery(p)) {
     return {
-      reply: "This website was created by Debojyoti Karmakar. ✨ He built BODYFORGE to bring world-class, accessible bodyweight fitness and wellness to everyone!",
-      action: undefined
+      reply: "This website was created by Debojyoti Karmakar. ✨ He built BODYFORGE to bring world-class, accessible bodyweight fitness, smart kinetic motion demonstrations, and uplifting daily wellness motivation to everyone! 🌟\n\n[CREATOR_CARD]",
+      action: { label: 'Explore BodyForge Workouts 💪', tabTarget: 'library' },
+      showCreator: true
     };
   }
 
@@ -217,17 +240,16 @@ app.post('/api/chat/stream', async (req, res) => {
   res.flushHeaders?.();
 
   // Explicit creator query handling
-  const lowerPrompt = prompt.toLowerCase();
-  if (
-    lowerPrompt.includes('who created') || 
-    lowerPrompt.includes('who made') || 
-    lowerPrompt.includes('who built') || 
-    lowerPrompt.includes('who developed') ||
-    lowerPrompt.includes('developer of this website') ||
-    lowerPrompt.includes('creator of this website')
-  ) {
-    const creatorReply = 'This website was created by Debojyoti Karmakar.';
-    res.write(`data: ${JSON.stringify({ text: creatorReply, done: true, isLiveAI: true })}\n\n`);
+  if (isCreatorQuery(prompt)) {
+    const creatorReply = "This website was created by Debojyoti Karmakar. ✨ He built BODYFORGE to bring world-class, accessible bodyweight fitness, smart kinetic motion demonstrations, and uplifting daily wellness motivation to everyone! 🌟\n\n[CREATOR_CARD]";
+    res.write(`data: ${JSON.stringify({ 
+      text: creatorReply, 
+      done: true, 
+      suggestedAction: { label: 'Explore BodyForge Workouts 💪', tabTarget: 'library' },
+      isLiveAI: true,
+      showCreator: true,
+      creatorImage: '/assets/aistudio/1793189785291_447b1826.png'
+    })}\n\n`);
     return res.end();
   }
 
@@ -269,13 +291,27 @@ app.post('/api/chat/stream', async (req, res) => {
     }
 
     const action = detectSuggestedAction(prompt, fullReply);
-    res.write(`data: ${JSON.stringify({ done: true, suggestedAction: action, isLiveAI: true })}\n\n`);
+    const showCreator = isCreatorQuery(prompt) || fullReply.includes('Debojyoti') || fullReply.includes('[CREATOR_CARD]');
+    res.write(`data: ${JSON.stringify({ 
+      done: true, 
+      suggestedAction: action, 
+      isLiveAI: true,
+      showCreator,
+      creatorImage: showCreator ? '/assets/aistudio/1793189785291_447b1826.png' : undefined
+    })}\n\n`);
     res.end();
   } catch (error) {
     console.warn('[BODYFORGE] Live Gemini stream notice:', error);
     // Provide a rich, seamless answer without awkward connection delay complaints
     const fallback = generateIntelligentFallback(prompt, language);
-    res.write(`data: ${JSON.stringify({ text: fallback.reply, done: true, suggestedAction: fallback.action, isLiveAI: false })}\n\n`);
+    res.write(`data: ${JSON.stringify({ 
+      text: fallback.reply, 
+      done: true, 
+      suggestedAction: fallback.action, 
+      isLiveAI: false,
+      showCreator: fallback.showCreator,
+      creatorImage: fallback.showCreator ? '/assets/aistudio/1793189785291_447b1826.png' : undefined
+    })}\n\n`);
     res.end();
   }
 });
@@ -291,18 +327,12 @@ app.post('/api/chat', async (req, res) => {
   const prompt = userText;
 
   // Explicit creator query handling
-  const lowerPrompt = prompt.toLowerCase();
-  if (
-    lowerPrompt.includes('who created') || 
-    lowerPrompt.includes('who made') || 
-    lowerPrompt.includes('who built') || 
-    lowerPrompt.includes('who developed') ||
-    lowerPrompt.includes('developer of this website') ||
-    lowerPrompt.includes('creator of this website')
-  ) {
+  if (isCreatorQuery(prompt)) {
     return res.json({
-      reply: 'This website was created by Debojyoti Karmakar.',
-      suggestedAction: undefined,
+      reply: "This website was created by Debojyoti Karmakar. ✨ He built BODYFORGE to bring world-class, accessible bodyweight fitness, smart kinetic motion demonstrations, and uplifting daily wellness motivation to everyone! 🌟\n\n[CREATOR_CARD]",
+      suggestedAction: { label: 'Explore BodyForge Workouts 💪', tabTarget: 'library' },
+      showCreator: true,
+      creatorImage: '/assets/aistudio/1793189785291_447b1826.png',
       isConfigured: true,
       isLiveAI: true
     });
@@ -345,10 +375,13 @@ app.post('/api/chat', async (req, res) => {
     const response = await Promise.race([generatePromise, timeoutPromise]);
     const replyText = response.text || generateIntelligentFallback(prompt, language).reply;
     const suggestedAction = detectSuggestedAction(prompt, replyText);
+    const showCreator = isCreatorQuery(prompt) || replyText.includes('Debojyoti') || replyText.includes('[CREATOR_CARD]');
 
     return res.json({
       reply: replyText,
       suggestedAction,
+      showCreator,
+      creatorImage: showCreator ? '/assets/aistudio/1793189785291_447b1826.png' : undefined,
       isConfigured: true,
       isLiveAI: true
     });
@@ -358,6 +391,8 @@ app.post('/api/chat', async (req, res) => {
     return res.json({
       reply: fallback.reply,
       suggestedAction: fallback.action,
+      showCreator: fallback.showCreator,
+      creatorImage: fallback.showCreator ? '/assets/aistudio/1793189785291_447b1826.png' : undefined,
       isConfigured: true,
       isLiveAI: false
     });

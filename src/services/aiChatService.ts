@@ -1,4 +1,39 @@
-import { ChatMessage, SupportedLanguage, UserFitnessProfile, WorkoutMediaItem } from '../types';
+import { ChatMessage, SupportedLanguage, UserFitnessProfile, WorkoutMediaItem, CreatorProfile } from '../types';
+
+export const DEBOJYOTI_CREATOR_PROFILE: CreatorProfile = {
+  name: 'Debojyoti Karmakar',
+  role: 'Creator & Lead Developer of BODYFORGE',
+  image: '/assets/aistudio/1793189785291_447b1826.png',
+  tagline: 'Architect of BODYFORGE & BodyBuddy AI • Calisthenics & Tech Enthusiast',
+  badge: 'Verified Creator ✨'
+};
+
+export function isCreatorQuery(query: string): boolean {
+  const p = (query || '').toLowerCase().trim();
+  return (
+    p.includes('who made') || 
+    p.includes('who created') || 
+    p.includes('who built') || 
+    p.includes('who developed') || 
+    p.includes('who programmed') || 
+    p.includes('who designed') || 
+    p.includes('who coded') || 
+    p.includes('who is your creator') || 
+    p.includes('who is your maker') || 
+    p.includes('who is the creator') || 
+    p.includes('who is the developer') || 
+    p.includes('who is debojyoti') || 
+    p.includes('who is debajyoti') || 
+    p.includes('creator of this') || 
+    p.includes('developer of this') || 
+    p.includes('creator of bodyforge') || 
+    p.includes('creator of bodybuddy') || 
+    p.includes('made you') || 
+    p.includes('created you') || 
+    p.includes('built you') || 
+    p.includes('developed you')
+  );
+}
 
 export interface ChatResponse {
   message: string;
@@ -9,6 +44,7 @@ export interface ChatResponse {
     routineId?: string;
   };
   mediaContent?: WorkoutMediaItem;
+  creatorProfile?: CreatorProfile;
   isLiveAI: boolean;
 }
 
@@ -82,10 +118,27 @@ export function buildMediaItem(
   }
 }
 
-export function extractMediaContent(text: string, prompt?: string): { cleanText: string; media?: WorkoutMediaItem } {
+export function extractMediaContent(text: string, prompt?: string): { 
+  cleanText: string; 
+  media?: WorkoutMediaItem;
+  creatorProfile?: CreatorProfile;
+} {
+  let cleaned = text || '';
+  let creatorProfile: CreatorProfile | undefined;
+
+  // Detect and strip [CREATOR_CARD]
+  if (cleaned.includes('[CREATOR_CARD]')) {
+    cleaned = cleaned.replace(/\[CREATOR_CARD\]/g, '').trim();
+    creatorProfile = DEBOJYOTI_CREATOR_PROFILE;
+  }
+
+  if (isCreatorQuery(prompt || '') || isCreatorQuery(cleaned) || cleaned.includes('Debojyoti Karmakar')) {
+    creatorProfile = DEBOJYOTI_CREATOR_PROFILE;
+  }
+
   // Regex to match [MEDIA: type="...", exercise="...", title="..."]
   const mediaRegex = /\[MEDIA:\s*type="?([^",]+)"?,\s*exercise="?([^",]+)"?,\s*title="?([^"\]]+)"?\]/i;
-  const match = text.match(mediaRegex);
+  const match = cleaned.match(mediaRegex);
 
   if (match) {
     const rawType = match[1].toLowerCase().trim();
@@ -97,36 +150,36 @@ export function extractMediaContent(text: string, prompt?: string): { cleanText:
     else if (rawExercise.includes('chin') || rawExercise.includes('jaw') || rawExercise.includes('neck')) exerciseType = 'chin-tuck';
     else if (rawExercise.includes('cat') || rawExercise.includes('cow') || rawExercise.includes('spine')) exerciseType = 'cat-cow';
 
-    const cleanText = text.replace(mediaRegex, '').trim();
+    const cleanText = cleaned.replace(mediaRegex, '').trim();
     const media = buildMediaItem(type, exerciseType, match[3].trim());
-    return { cleanText, media };
+    return { cleanText, media, creatorProfile };
   }
 
   // Smart Detection: If user explicitly asked for video, image, diagram, photo, or visual demo
-  const combined = ((prompt || '') + ' ' + text).toLowerCase();
+  const combined = ((prompt || '') + ' ' + cleaned).toLowerCase();
   const wantsVideo = combined.includes('video') || combined.includes('clip') || combined.includes('moving') || combined.includes('animation');
   const wantsImage = combined.includes('image') || combined.includes('picture') || combined.includes('photo') || combined.includes('diagram') || combined.includes('infographic') || combined.includes('draw') || combined.includes('make a') || combined.includes('generate a');
 
   if (wantsVideo || wantsImage) {
     const type: 'video' | 'image' = wantsVideo ? 'video' : 'image';
     if (combined.includes('squat')) {
-      return { cleanText: text, media: buildMediaItem(type, 'squat', 'Air Squat Biomechanics') };
+      return { cleanText: cleaned, media: buildMediaItem(type, 'squat', 'Air Squat Biomechanics'), creatorProfile };
     }
     if (combined.includes('plank') || combined.includes('core') || combined.includes('abs')) {
-      return { cleanText: text, media: buildMediaItem(type, 'plank', 'Isometric Plank Bracing') };
+      return { cleanText: cleaned, media: buildMediaItem(type, 'plank', 'Isometric Plank Bracing'), creatorProfile };
     }
     if (combined.includes('chin') || combined.includes('jawline') || combined.includes('neck') || combined.includes('posture') || combined.includes('glow')) {
-      return { cleanText: text, media: buildMediaItem(type, 'chin-tuck', 'Cervical Retraction & Jawline Plumb Line') };
+      return { cleanText: cleaned, media: buildMediaItem(type, 'chin-tuck', 'Cervical Retraction & Jawline Plumb Line'), creatorProfile };
     }
     if (combined.includes('cat') || combined.includes('cow') || combined.includes('spine') || combined.includes('back')) {
-      return { cleanText: text, media: buildMediaItem(type, 'cat-cow', 'Spinal Flexion-Extension Rhythm') };
+      return { cleanText: cleaned, media: buildMediaItem(type, 'cat-cow', 'Spinal Flexion-Extension Rhythm'), creatorProfile };
     }
     if (combined.includes('pushup') || combined.includes('push up') || combined.includes('chest') || combined.includes('workout') || combined.includes('exercise')) {
-      return { cleanText: text, media: buildMediaItem(type, 'pushup', 'Standard Calisthenics Push-Up') };
+      return { cleanText: cleaned, media: buildMediaItem(type, 'pushup', 'Standard Calisthenics Push-Up'), creatorProfile };
     }
   }
 
-  return { cleanText: text };
+  return { cleanText: cleaned, creatorProfile };
 }
 
 // Emergency red flag terms that trigger immediate urgent-care guidance
@@ -151,7 +204,12 @@ export const streamChatMessage = async (
   language: SupportedLanguage,
   userProfile: UserFitnessProfile | null | undefined,
   onChunk: (textChunk: string) => void,
-  onComplete: (suggestedAction?: { label: string; tabTarget?: string; routineId?: string }, isLiveAI?: boolean, media?: WorkoutMediaItem) => void,
+  onComplete: (
+    suggestedAction?: { label: string; tabTarget?: string; routineId?: string },
+    isLiveAI?: boolean,
+    media?: WorkoutMediaItem,
+    creatorProfile?: CreatorProfile
+  ) => void,
   onError: (err: unknown) => void
 ): Promise<void> => {
   // 1. Triage Safety Check
@@ -190,7 +248,7 @@ export const streamChatMessage = async (
       // Fallback to standard chat endpoint if streaming is not supported
       const fallback = await sendChatMessage(prompt, history, language, userProfile);
       onChunk(fallback.message);
-      onComplete(fallback.suggestedAction, fallback.isLiveAI, fallback.mediaContent);
+      onComplete(fallback.suggestedAction, fallback.isLiveAI, fallback.mediaContent, fallback.creatorProfile);
       return;
     }
 
@@ -216,8 +274,9 @@ export const streamChatMessage = async (
               onChunk(data.text);
             }
             if (data.done) {
-              const { media } = extractMediaContent(accumulated, prompt);
-              onComplete(data.suggestedAction, data.isLiveAI ?? true, media);
+              const { media, creatorProfile: extractedCreator } = extractMediaContent(accumulated, prompt);
+              const creator = data.showCreator ? DEBOJYOTI_CREATOR_PROFILE : extractedCreator;
+              onComplete(data.suggestedAction, data.isLiveAI ?? true, media, creator);
             }
           } catch {
             // ignore partial json
@@ -272,11 +331,13 @@ export const sendChatMessage = async (
     if (res.ok) {
       const data = await res.json();
       if (data.reply) {
-        const { cleanText, media } = extractMediaContent(data.reply, prompt);
+        const { cleanText, media, creatorProfile: extractedCreator } = extractMediaContent(data.reply, prompt);
+        const creator = data.showCreator ? DEBOJYOTI_CREATOR_PROFILE : extractedCreator;
         return {
           message: cleanText,
           suggestedAction: data.suggestedAction,
           mediaContent: media,
+          creatorProfile: creator,
           isLiveAI: data.isLiveAI !== false
         };
       }
@@ -294,17 +355,11 @@ function getLocalAssistantFallback(prompt: string, lang: SupportedLanguage): Cha
   const { media } = extractMediaContent(prompt, prompt);
 
   // Mandatory Creator Attribution
-  if (
-    p.includes('who made') || 
-    p.includes('who created') || 
-    p.includes('who developed') || 
-    p.includes('who built') || 
-    p.includes('creator') || 
-    p.includes('developer') || 
-    p.includes('made this website')
-  ) {
+  if (isCreatorQuery(p)) {
     return {
-      message: "This website was created by Debojyoti Karmakar. ✨ He built BODYFORGE to bring world-class, accessible bodyweight fitness and wellness to everyone!",
+      message: "This website was created by Debojyoti Karmakar. ✨ He built BODYFORGE to bring world-class, accessible bodyweight fitness, smart kinetic motion demonstrations, and uplifting daily wellness motivation to everyone! 🌟",
+      suggestedAction: { label: 'Explore BodyForge Workouts 💪', tabTarget: 'library' },
+      creatorProfile: DEBOJYOTI_CREATOR_PROFILE,
       isLiveAI: false
     };
   }

@@ -244,6 +244,14 @@ export interface WorkoutMediaItem {
   imageUrl?: string;
 }
 
+export interface CreatorProfile {
+  name: string;
+  role: string;
+  image: string;
+  tagline?: string;
+  badge?: string;
+}
+
 export interface ChatMessage {
   id: string;
   sender: 'user' | 'assistant' | 'system';
@@ -255,6 +263,7 @@ export interface ChatMessage {
     routineId?: string;
   };
   mediaContent?: WorkoutMediaItem;
+  creatorProfile?: CreatorProfile;
   isEmergencyAlert?: boolean;
 }
 

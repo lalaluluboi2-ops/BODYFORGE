@@ -60,6 +60,7 @@ export const BodyBuddyChat: React.FC<BodyBuddyChatProps> = ({ userProfile, onNav
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editTitleInput, setEditTitleInput] = useState('');
   const [likedMessages, setLikedMessages] = useState<Record<string, boolean>>({});
+  const [selectedCreatorPhoto, setSelectedCreatorPhoto] = useState<string | null>(null);
 
   const toggleLike = (msgId: string) => {
     setLikedMessages(prev => ({ ...prev, [msgId]: !prev[msgId] }));
@@ -170,14 +171,16 @@ export const BodyBuddyChat: React.FC<BodyBuddyChatProps> = ({ userProfile, onNav
         const { cleanText } = extractMediaContent(accumulatedText, query);
         setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, text: cleanText } : m));
       },
-      (action, live, media) => {
+      (action, live, media, creator) => {
         setIsLiveAI(live ?? true);
-        const { cleanText } = extractMediaContent(accumulatedText, query);
+        const { cleanText, creatorProfile: extractedCreator } = extractMediaContent(accumulatedText, query);
+        const finalCreator = creator || extractedCreator;
         const finalMessages = updatedMessages.map(m => m.id === assistantMsgId ? { 
           ...m, 
           text: cleanText,
           suggestedAction: action,
-          mediaContent: media
+          mediaContent: media,
+          creatorProfile: finalCreator
         } : m);
         setMessages(finalMessages);
         setIsLoading(false);
@@ -210,14 +213,15 @@ export const BodyBuddyChat: React.FC<BodyBuddyChatProps> = ({ userProfile, onNav
       },
       (err) => {
         console.error('Chat error:', err);
-        const { cleanText, media } = extractMediaContent(
+        const { cleanText, media, creatorProfile: extractedCreator } = extractMediaContent(
           accumulatedText || "I'm right here to help you train and stay healthy! What's next on your mind?", 
           query
         );
         const fallbackMessages = updatedMessages.map(m => m.id === assistantMsgId ? {
           ...m,
           text: cleanText,
-          mediaContent: media
+          mediaContent: media,
+          creatorProfile: extractedCreator
         } : m);
         setMessages(fallbackMessages);
         setIsLoading(false);
@@ -226,13 +230,13 @@ export const BodyBuddyChat: React.FC<BodyBuddyChatProps> = ({ userProfile, onNav
   };
 
   const quickPills = [
+    { label: '🌟 Who made you?', query: 'Who made you and created this website?' },
     { label: '💛 Cheer me up today!', query: 'Can you give me a friendly boost of motivation and a kind word today? 💛' },
-    { label: '☕ I feel tired & unmotivated...', query: "I'm feeling a bit tired and low on energy today. What's a gentle, kind way to move my body without stress?" },
     { label: '🎥 Push-Up Video Demo', query: 'Make an interactive video demonstration of pushups with form cues' },
     { label: '🥑 Healthy & Tasty Meals', query: 'What healthy, balanced meals and protein foods support bodyweight fitness?' },
     { label: '✨ 30-Day Glow-Up Blueprint', query: 'Give me the athletic glow-up blueprint for jawline, posture, and skin radiance' },
+    { label: '☕ Feeling tired & low energy', query: "I'm feeling a bit tired and low on energy today. What's a gentle, kind way to move my body without stress?" },
     { label: '🎉 Fun Fitness Fact', query: 'Tell me a fun, fascinating fitness or human body fact to brighten my day!' },
-    { label: '🌟 Who created this website?', query: 'Who created this website?' },
     { label: '🧘 Gentle Back & Neck Relief', query: 'My back and neck feel stiff from sitting. What are gentle movements I can do safely?' }
   ];
 
@@ -509,6 +513,62 @@ export const BodyBuddyChat: React.FC<BodyBuddyChatProps> = ({ userProfile, onNav
                         <WorkoutMediaCard media={m.mediaContent} />
                       )}
 
+                      {/* Verified Creator Card with Debojyoti Karmakar portrait */}
+                      {m.creatorProfile && (
+                        <div className="mt-3.5 p-3.5 rounded-2xl bg-charcoal-900/90 border border-forge-cyan/40 shadow-[0_0_20px_rgba(0,240,255,0.25)] relative overflow-hidden backdrop-blur-md animate-in fade-in zoom-in-95 duration-300">
+                          {/* Ambient cyan and violet aura inspired by the portrait's neon backdrop */}
+                          <div className="absolute -top-10 -right-10 w-28 h-28 bg-forge-cyan/20 rounded-full blur-2xl pointer-events-none" />
+                          <div className="absolute -bottom-10 -left-10 w-28 h-28 bg-indigo-600/30 rounded-full blur-2xl pointer-events-none" />
+
+                          <div className="relative z-10 flex items-center gap-3.5">
+                            {/* Circular glowing portrait */}
+                            <div 
+                              onClick={() => setSelectedCreatorPhoto(m.creatorProfile?.image || null)}
+                              className="relative cursor-pointer group shrink-0"
+                              title="Click to expand Debojyoti's photo"
+                            >
+                              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full p-0.5 bg-gradient-to-tr from-cyan-400 via-blue-500 to-fuchsia-500 shadow-[0_0_15px_rgba(0,240,255,0.5)] group-hover:scale-105 group-hover:shadow-[0_0_25px_rgba(0,240,255,0.75)] transition-all duration-300">
+                                <img 
+                                  src={m.creatorProfile.image} 
+                                  alt={m.creatorProfile.name} 
+                                  className="w-full h-full rounded-full object-cover bg-charcoal-950" 
+                                />
+                              </div>
+                              <span className="absolute bottom-0 right-0 p-1 bg-charcoal-950 rounded-full border border-forge-cyan text-cyan-300 shadow-md">
+                                <Sparkles className="w-2.5 h-2.5" />
+                              </span>
+                            </div>
+
+                            {/* Creator details */}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <h4 className="text-sm font-extrabold text-white tracking-wide">{m.creatorProfile.name}</h4>
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-forge-cyan/20 border border-forge-cyan/40 text-[9px] font-bold text-forge-cyan tracking-wider uppercase">
+                                  <ShieldCheck className="w-2.5 h-2.5" /> Verified
+                                </span>
+                              </div>
+                              <p className="text-[11px] font-bold text-forge-lime mt-0.5">
+                                {m.creatorProfile.role}
+                              </p>
+                              {m.creatorProfile.tagline && (
+                                <p className="text-[10px] text-gray-300 leading-snug mt-1 font-sans">
+                                  {m.creatorProfile.tagline}
+                                </p>
+                              )}
+                              <div className="mt-2 flex items-center gap-2">
+                                <button 
+                                  onClick={() => setSelectedCreatorPhoto(m.creatorProfile?.image || null)}
+                                  className="text-[9px] font-mono text-cyan-300 hover:text-white flex items-center gap-1 underline underline-offset-2 cursor-pointer transition-colors"
+                                >
+                                  <Maximize2 className="w-2.5 h-2.5" />
+                                  <span>View Photo</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Contextual Action Button */}
                       {m.suggestedAction && (
                         <button
@@ -601,6 +661,51 @@ export const BodyBuddyChat: React.FC<BodyBuddyChatProps> = ({ userProfile, onNav
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* Lightbox Modal for Debojyoti's Portrait Photo */}
+      {selectedCreatorPhoto && (
+        <div 
+          onClick={() => setSelectedCreatorPhoto(null)}
+          className="fixed inset-0 z-[70] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-sm w-full bg-charcoal-900 border border-forge-cyan/60 rounded-3xl p-6 text-center shadow-[0_0_40px_rgba(0,240,255,0.4)]"
+          >
+            <button 
+              onClick={() => setSelectedCreatorPhoto(null)}
+              className="absolute top-3.5 right-3.5 p-1.5 rounded-full bg-charcoal-800 text-gray-400 hover:text-white hover:bg-charcoal-700 transition-colors cursor-pointer"
+              title="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="w-44 h-44 mx-auto rounded-full p-1 bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-500 shadow-[0_0_30px_rgba(0,240,255,0.6)] mb-4">
+              <img 
+                src={selectedCreatorPhoto} 
+                alt="Debojyoti Karmakar" 
+                className="w-full h-full rounded-full object-cover bg-charcoal-950" 
+              />
+            </div>
+
+            <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-forge-cyan/20 border border-forge-cyan/40 text-[10px] font-bold text-forge-cyan tracking-wider uppercase mb-1.5">
+              <ShieldCheck className="w-3 h-3" /> Verified Creator
+            </div>
+            <h3 className="text-xl font-extrabold text-white">Debojyoti Karmakar</h3>
+            <p className="text-xs text-forge-lime font-bold mt-0.5">Creator & Developer of BODYFORGE</p>
+            <p className="text-xs text-gray-300 mt-2.5 leading-relaxed font-sans">
+              Debojyoti created BODYFORGE and BodyBuddy AI to bring accessible bodyweight fitness, smart kinetic motion demonstrations, and positive daily motivation to athletes everywhere! ✨
+            </p>
+            
+            <button
+              onClick={() => setSelectedCreatorPhoto(null)}
+              className="mt-5 px-4 py-2.5 rounded-xl bg-forge-lime text-black font-extrabold text-xs hover:bg-forge-lime-hover transition-all w-full shadow-forge-glow cursor-pointer"
+            >
+              Awesome! Let's Workout 💪
+            </button>
+          </div>
         </div>
       )}
     </>
